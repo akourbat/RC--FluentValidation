@@ -1,4 +1,5 @@
 ﻿@page "/"
+@using System.Reactive.Linq;
 
 <h1>Hello, world!</h1>
 
@@ -7,13 +8,9 @@ Welcome to your new app.
 <hr />
 
 <div class="col-md-4">
-    <EditForm Model="@Person" OnValidSubmit="@SubmitValidForm" OnInvalidSubmit="@SubmitInvalidForm">
+    <EditForm Model="@Person" OnValidSubmit="@SubmitValidForm">
         <FluentValidationValidator Validator="@validator" />
-
-        @if (showValidationSummary)
-        {
-            <ValidationSummary />
-        }
+        <ValidationSummary />
 
         <div class="form-group">
             <label for="name">Name</label>
@@ -35,27 +32,21 @@ Welcome to your new app.
             <small id="email" class="form-text text-muted">Please, enter your email address</small>
             <small><ValidationMessage For="@(() => Person.EmailAddress)" /></small>
         </div>
-
-        <button type="submit" class="btn btn-primary">Save</button>
+        <button type="submit" class="btn btn-primary" disabled ="@context.GetValidationMessages().Any()">Save</button>
     </EditForm>
-    <h2>@success</h2>
+    <h2>@Success</h2>
 </div>
 
 @functions {
-    Person Person { get; set; } = new Person();
-    PersonValidator validator = new PersonValidator();
-    bool showValidationSummary = false;
-    string success = string.Empty;
 
+    Person Person { get; set; } = new Person();
+
+    PersonValidator validator = new PersonValidator();
+
+    string Success = "";
 
     void SubmitValidForm()
     {
-        success = "Form Submitted Successfully!";
-        showValidationSummary = false;
-    }
-
-    void SubmitInvalidForm()
-    {
-        showValidationSummary = true;
+        Success = "Form Submitted Successfully!";
     }
 }

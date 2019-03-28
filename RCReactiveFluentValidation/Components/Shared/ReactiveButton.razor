@@ -1,0 +1,69 @@
+﻿@inherits ComponentBase
+@using ReactiveUI;
+@using System.Reactive.Linq;
+
+<button class=@Classes disabled=@isDisabled onclick=@ButtonClicked>
+    @ChildContent
+</button>
+
+@functions{
+
+    [Parameter]
+    private string Classes { get; set; }
+
+    [Parameter]
+    private object Command { get; set; }
+
+    [Parameter]
+    private object CommandParameter { get; set; }
+
+    [Parameter]
+    private RenderFragment ChildContent { get; set; }
+
+    private IDisposable canExecuteSub;
+
+    private bool isDisabled = false;
+
+    public override Task SetParametersAsync(ParameterCollection parameters)
+    {
+        if (parameters.TryGetValue<object>("Command", out var command))
+        {
+            Type t = command.GetType();
+
+            if (t.IsGenericType)
+            {
+                if (t.GetGenericTypeDefinition() == typeof(ReactiveCommand<,>)) //check the object is our type
+                {
+                    var canExecuteObs = (IObservable<bool>)t.GetProperty("CanExecute").GetValue(command);
+
+                    if (canExecuteSub != null)
+                        canExecuteSub.Dispose();
+
+                    canExecuteSub = canExecuteObs.Subscribe(canExecute =>
+
+                    {
+                        isDisabled = !canExecute;
+                        Invoke(() => { StateHasChanged(); });
+                    });
+                }
+            }
+        }
+        return base.SetParametersAsync(parameters);
+    }
+
+    private void ButtonClicked()
+    {
+        Type t = Command.GetType();
+
+        if (t.IsGenericType)
+        {
+            if (t.GetGenericTypeDefinition() == typeof(ReactiveCommand<,>)) //check the object is our type
+            {
+                var method = t.GetMethod("Execute");
+
+                Invoke(() => ((IObservable<System.Reactive.Unit>)(method.Invoke(Command, new[] { CommandParameter })))
+                    .Subscribe());
+            }
+        }
+    }
+}

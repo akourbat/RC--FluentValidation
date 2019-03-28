@@ -1,6 +1,8 @@
-﻿
+﻿using PropertyChanged;
+
 namespace RCReactiveFluentValidation.Validation
 {
+    [AddINotifyPropertyChangedInterface]
     public class Person
     {
         public string Name { get; set; }
