@@ -53,11 +53,10 @@ namespace RCReactiveFluentValidation.Validation
                     if (validationResults.IsValid)
                         OnValidation.InvokeAsync(true);
                     else
-                        OnValidation.InvokeAsync(false);
-
-                    foreach (var validationResult in validationResults.Errors)
                     {
-                        messages.Add(CurrentEditContext.Field(validationResult.PropertyName), validationResult.ErrorMessage);
+                        OnValidation.InvokeAsync(false);
+                        foreach (var validationResult in validationResults.Errors)
+                            messages.Add(CurrentEditContext.Field(validationResult.PropertyName), validationResult.ErrorMessage);
                     }
                     CurrentEditContext.NotifyValidationStateChanged();
                 });
@@ -71,21 +70,25 @@ namespace RCReactiveFluentValidation.Validation
                     var validationResults = validator.Validate(CurrentEditContext.Model);
 
                     if (validationResults.IsValid)
+                    {
+                        messages.Clear();
                         OnValidation.InvokeAsync(true);
+                    }
                     else
+                    {
                         OnValidation.InvokeAsync(false);
 
-                    messages.Clear(e.EventArgs.FieldIdentifier);
-                    messages.AddRange(e.EventArgs.FieldIdentifier, validationResults.Errors
-                        .Where(f => f.PropertyName == e.EventArgs.FieldIdentifier.FieldName)
-                        .Select(error => error.ErrorMessage));
+                        messages.Clear(e.EventArgs.FieldIdentifier);
+                        messages.AddRange(e.EventArgs.FieldIdentifier, validationResults.Errors
+                            .Where(f => f.PropertyName == e.EventArgs.FieldIdentifier.FieldName)
+                            .Select(error => error.ErrorMessage));
 
-                    // clear errors that are not specific to field, e.g. complex rules
-                    messages.Clear(modelErrorField);
-                    messages.AddRange(modelErrorField, validationResults.Errors
-                        .Where(f => f.PropertyName == "")
-                        .Select(error => error.ErrorMessage));
-
+                        // clear errors that are not specific to field, e.g. complex rules
+                        messages.Clear(modelErrorField);
+                        messages.AddRange(modelErrorField, validationResults.Errors
+                            .Where(f => f.PropertyName == "")
+                            .Select(error => error.ErrorMessage));
+                    }
                     CurrentEditContext.NotifyValidationStateChanged();
                 });
         }
