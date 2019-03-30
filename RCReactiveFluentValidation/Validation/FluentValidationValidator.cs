@@ -80,20 +80,20 @@ namespace RCReactiveFluentValidation.Validation
 
                         messages.Clear(e.EventArgs.FieldIdentifier);
                         messages.AddRange(e.EventArgs.FieldIdentifier, validationResults.Errors
-                            .Where(f => f.PropertyName == e.EventArgs.FieldIdentifier.FieldName)
-                            .Select(error => error.ErrorMessage));
+                            .Where(failure => failure.PropertyName == e.EventArgs.FieldIdentifier.FieldName)
+                            .Select(failure => failure.ErrorMessage));
 
                         // clear errors that are not specific to field, e.g. complex rules
                         messages.Clear(modelErrorField);
                         messages.AddRange(modelErrorField, validationResults.Errors
-                            .Where(f => f.PropertyName == "")
-                            .Select(error => error.ErrorMessage));
+                            .Where(failure => failure.PropertyName == "")
+                            .Select(failure => failure.ErrorMessage));
                     }
                     CurrentEditContext.NotifyValidationStateChanged();
                 });
         }
         // If validator instance is not provided, get it via reflection
-        private static IValidator GetValidatorForModel(object model)
+        private IValidator GetValidatorForModel(object model)
         {
             var abstractValidatorType = typeof(AbstractValidator<>).MakeGenericType(model.GetType());
             var modelValidatorType = Assembly.GetExecutingAssembly().GetTypes().FirstOrDefault(t => t.IsSubclassOf(abstractValidatorType));

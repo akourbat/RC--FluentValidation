@@ -1,5 +1,4 @@
 ﻿@page "/"
-@using System.Reactive.Linq;
 
 <h1>Hello, world!</h1>
 
@@ -11,7 +10,6 @@ Welcome to your new app.
     <EditForm Model="@Person" OnValidSubmit="@SubmitValidForm">
         <FluentValidationValidator OnValidation="@CanSubmit" Validator="@validator"/>
         <ValidationSummary />
-        
 
         <div class="form-group">
             <label for="name">Name</label>
