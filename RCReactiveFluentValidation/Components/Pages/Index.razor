@@ -9,8 +9,9 @@ Welcome to your new app.
 
 <div class="col-md-4">
     <EditForm Model="@Person" OnValidSubmit="@SubmitValidForm">
-        <FluentValidationValidator Validator="@validator" />
+        <FluentValidationValidator OnValidation="@CanSubmit" Validator="@validator"/>
         <ValidationSummary />
+        
 
         <div class="form-group">
             <label for="name">Name</label>
@@ -32,7 +33,7 @@ Welcome to your new app.
             <small id="email" class="form-text text-muted">Please, enter your email address</small>
             <small><ValidationMessage For="@(() => Person.EmailAddress)" /></small>
         </div>
-        <button type="submit" class="btn btn-primary" disabled ="@context.GetValidationMessages().Any()">Save</button>
+        <button type="submit" class="btn btn-primary" disabled ="@submitDisabled">Submit</button>
     </EditForm>
     <h2>@Success</h2>
 </div>
@@ -44,6 +45,12 @@ Welcome to your new app.
     PersonValidator validator = new PersonValidator();
 
     string Success = "";
+    bool submitDisabled = true;
+
+    void CanSubmit(bool flag)
+    {
+        submitDisabled = !flag;
+    }
 
     void SubmitValidForm()
     {

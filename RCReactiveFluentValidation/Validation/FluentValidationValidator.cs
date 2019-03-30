@@ -12,9 +12,10 @@ namespace RCReactiveFluentValidation.Validation
     {
         [CascadingParameter] EditContext CurrentEditContext { get; set; }
         [Parameter] public IValidator Validator { get; set; }
+        [Parameter] public EventCallback<bool> OnValidation { get; set; }
 
-        private IDisposable formValdationSub;
-        private IDisposable fieldValdationSub;
+        private IDisposable formValidationSub;
+        private IDisposable fieldValidationSub;
 
         protected override void OnInit()
         {
@@ -31,7 +32,7 @@ namespace RCReactiveFluentValidation.Validation
             {
                 throw new InvalidOperationException($"{nameof(FluentValidationValidator)} requires either a " +
                     $"parameter of type {nameof(IValidator)}, or validator for type {nameof(CurrentEditContext.Model)} " +
-                    $"should be reachable from the calling assembly.");
+                    $"should be reachable via reflection from the calling assembly.");
             }
 
             var messages = new ValidationMessageStore(CurrentEditContext);
@@ -39,14 +40,21 @@ namespace RCReactiveFluentValidation.Validation
             // This field collects errors that are model-related but not specific to concrete property on the model
             var modelErrorField = new FieldIdentifier(CurrentEditContext.Model, "");
 
-            // This subscription fires when Submit button is pressed, acts as a guard
-            formValdationSub = Observable.FromEventPattern<ValidationRequestedEventArgs>(
+            // This subscription fires when Submit button is pressed, 
+            // acts as a guard against not validated still-focused field
+            formValidationSub = Observable.FromEventPattern<ValidationRequestedEventArgs>(
                 handler => CurrentEditContext.OnValidationRequested += handler,
                 handler => CurrentEditContext.OnValidationRequested -= handler)
                 .Subscribe(e =>
                 {
                     messages.Clear();
                     var validationResults = validator.Validate(CurrentEditContext.Model);
+
+                    if (validationResults.IsValid)
+                        OnValidation.InvokeAsync(true);
+                    else
+                        OnValidation.InvokeAsync(false);
+
                     foreach (var validationResult in validationResults.Errors)
                     {
                         messages.Add(CurrentEditContext.Field(validationResult.PropertyName), validationResult.ErrorMessage);
@@ -55,12 +63,17 @@ namespace RCReactiveFluentValidation.Validation
                 });
 
             // This subscription fires every time an input field loses a focus, main workhorse
-            fieldValdationSub = Observable.FromEventPattern<FieldChangedEventArgs>(
+            fieldValidationSub = Observable.FromEventPattern<FieldChangedEventArgs>(
                 handler => CurrentEditContext.OnFieldChanged += handler,
                 handler => CurrentEditContext.OnFieldChanged -= handler)
                 .Subscribe(e =>
                 {
                     var validationResults = validator.Validate(CurrentEditContext.Model);
+
+                    if (validationResults.IsValid)
+                        OnValidation.InvokeAsync(true);
+                    else
+                        OnValidation.InvokeAsync(false);
 
                     messages.Clear(e.EventArgs.FieldIdentifier);
                     messages.AddRange(e.EventArgs.FieldIdentifier, validationResults.Errors
@@ -88,8 +101,8 @@ namespace RCReactiveFluentValidation.Validation
 
         public void Dispose()
         {
-            formValdationSub.Dispose();
-            fieldValdationSub.Dispose();
+            formValidationSub.Dispose();
+            fieldValidationSub.Dispose();
         }
     }
 }
