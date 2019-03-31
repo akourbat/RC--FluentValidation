@@ -50,11 +50,12 @@ Welcome to your new app.
     ValidationEvent _event;
     SubscriptionToken _token;
 
-
+    // One could also provide a callback to OnValidation parameter of FluentValidationValidator component
+    // and do without event aggregator.  This primarily serves as enabler\disabler of submit button
     protected override void OnInit()
     {
         _event = _eventAgrregator.GetEvent<ValidationEvent>();
-        _token = _event.Subscribe(e => 
+        _token = _event?.Subscribe(e => 
             { submitDisabled = !e.Valid; },
             ThreadOption.PublisherThread, false,
             e => e.Model == typeof(Person).FullName);
@@ -68,6 +69,6 @@ Welcome to your new app.
 
     public void Dispose()
     {
-        _event.Unsubscribe(_token);
+        _event?.Unsubscribe(_token);
     }
 }

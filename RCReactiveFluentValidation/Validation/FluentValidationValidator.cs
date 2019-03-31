@@ -12,10 +12,11 @@ namespace RCReactiveFluentValidation.Validation
     public class FluentValidationValidator : ComponentBase, IDisposable
     {
         [Inject]
-        protected IEventAggregator _eventAggreagator { get; set; }
+        protected IEventAggregator _eventAggregator { get; set; }
 
         [CascadingParameter] EditContext CurrentEditContext { get; set; }
         [Parameter] public IValidator Validator { get; set; }
+        [Parameter] public EventCallback<bool> OnValidation { get; set; }
 
         private IDisposable formValidationSub;
         private IDisposable fieldValidationSub;
@@ -41,8 +42,8 @@ namespace RCReactiveFluentValidation.Validation
             var messages = new ValidationMessageStore(CurrentEditContext);
             var modelName = CurrentEditContext.Model.GetType().FullName;
             // This field collects errors that are model-related but not specific to concrete property on the model
-            var modelErrorField = new FieldIdentifier(CurrentEditContext.Model, "");
-            var _event = _eventAggreagator.GetEvent<ValidationEvent>();
+            var modelErrorField = new FieldIdentifier(CurrentEditContext.Model, string.Empty);
+            var _event = _eventAggregator?.GetEvent<ValidationEvent>();
 
             // This subscription fires when Submit button is pressed, 
             // acts as a guard against not validated still-focused field
@@ -55,10 +56,16 @@ namespace RCReactiveFluentValidation.Validation
                     var validationResults = validator.Validate(CurrentEditContext.Model);
 
                     if (validationResults.IsValid)
-                        _event.Publish(new ValidationEventArgs(true, modelName));
+                    {
+                        _event?.Publish(new ValidationEventArgs(true, modelName));
+                        if (OnValidation.HasDelegate)
+                            OnValidation.InvokeAsync(true);
+                    }
                     else
                     {
-                        _event.Publish(new ValidationEventArgs(false, modelName));
+                        _event?.Publish(new ValidationEventArgs(false, modelName));
+                        if (OnValidation.HasDelegate)
+                            OnValidation.InvokeAsync(false);
                         foreach (var validationResult in validationResults.Errors)
                             messages.Add(CurrentEditContext.Field(validationResult.PropertyName), validationResult.ErrorMessage);
                     }
@@ -76,11 +83,15 @@ namespace RCReactiveFluentValidation.Validation
                     if (validationResults.IsValid)
                     {
                         messages.Clear();
-                        _event.Publish(new ValidationEventArgs (true, modelName));
+                        _event?.Publish(new ValidationEventArgs (true, modelName));
+                        if (OnValidation.HasDelegate)
+                            OnValidation.InvokeAsync(true);
                     }
                     else
                     {
-                        _event.Publish(new ValidationEventArgs(false, modelName));
+                        _event?.Publish(new ValidationEventArgs(false, modelName));
+                        if (OnValidation.HasDelegate)
+                            OnValidation.InvokeAsync(false);
                         messages.Clear(e.EventArgs.FieldIdentifier);
                         messages.AddRange(e.EventArgs.FieldIdentifier, validationResults.Errors
                             .Where(failure => failure.PropertyName == e.EventArgs.FieldIdentifier.FieldName)
@@ -89,7 +100,7 @@ namespace RCReactiveFluentValidation.Validation
                         // add errors that are not specific to field, e.g. complex rules
                         messages.Clear(modelErrorField);
                         messages.AddRange(modelErrorField, validationResults.Errors
-                            .Where(failure => failure.PropertyName == "")
+                            .Where(failure => failure.PropertyName == string.Empty)
                             .Select(failure => failure.ErrorMessage));
                     }
                     CurrentEditContext.NotifyValidationStateChanged();
@@ -104,11 +115,22 @@ namespace RCReactiveFluentValidation.Validation
 
             return modelValidatorInstance;
         }
-
         public void Dispose()
         {
             formValidationSub.Dispose();
             fieldValidationSub.Dispose();
         }
     }
+    public class ValidationEventArgs
+    {
+        public bool Valid { get; private set; }
+        public string Model { get; private set; }
+
+        public ValidationEventArgs(bool valid, string model)
+        {
+            Valid = valid;
+            Model = model;
+        }
+    }
+    public class ValidationEvent : PubSubEvent<ValidationEventArgs> { }
 }
