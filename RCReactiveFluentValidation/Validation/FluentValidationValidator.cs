@@ -1,6 +1,7 @@
 ﻿using FluentValidation;
 using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Forms;
+using Prism.Events;
 using System;
 using System.Linq;
 using System.Reactive.Linq;
@@ -10,9 +11,11 @@ namespace RCReactiveFluentValidation.Validation
 {
     public class FluentValidationValidator : ComponentBase, IDisposable
     {
+        [Inject]
+        protected IEventAggregator _eventAggreagator { get; set; }
+
         [CascadingParameter] EditContext CurrentEditContext { get; set; }
         [Parameter] public IValidator Validator { get; set; }
-        [Parameter] public EventCallback<bool> OnValidation { get; set; }
 
         private IDisposable formValidationSub;
         private IDisposable fieldValidationSub;
@@ -36,7 +39,7 @@ namespace RCReactiveFluentValidation.Validation
             }
 
             var messages = new ValidationMessageStore(CurrentEditContext);
-
+            var modelName = CurrentEditContext.Model.GetType().FullName;
             // This field collects errors that are model-related but not specific to concrete property on the model
             var modelErrorField = new FieldIdentifier(CurrentEditContext.Model, "");
 
@@ -51,10 +54,12 @@ namespace RCReactiveFluentValidation.Validation
                     var validationResults = validator.Validate(CurrentEditContext.Model);
 
                     if (validationResults.IsValid)
-                        OnValidation.InvokeAsync(true);
+                        _eventAggreagator.GetEvent<ValidationEvent>()
+                            .Publish(new ValidationTarget { Valid = true, Model = modelName });
                     else
                     {
-                        OnValidation.InvokeAsync(false);
+                        _eventAggreagator.GetEvent<ValidationEvent>()
+                            .Publish(new ValidationTarget { Valid = false, Model = modelName });
                         foreach (var validationResult in validationResults.Errors)
                             messages.Add(CurrentEditContext.Field(validationResult.PropertyName), validationResult.ErrorMessage);
                     }
@@ -72,12 +77,13 @@ namespace RCReactiveFluentValidation.Validation
                     if (validationResults.IsValid)
                     {
                         messages.Clear();
-                        OnValidation.InvokeAsync(true);
+                        _eventAggreagator.GetEvent<ValidationEvent>()
+                            .Publish(new ValidationTarget { Valid = true, Model = modelName });
                     }
                     else
                     {
-                        OnValidation.InvokeAsync(false);
-
+                        _eventAggreagator.GetEvent<ValidationEvent>()
+                            .Publish(new ValidationTarget { Valid = false, Model = modelName });
                         messages.Clear(e.EventArgs.FieldIdentifier);
                         messages.AddRange(e.EventArgs.FieldIdentifier, validationResults.Errors
                             .Where(failure => failure.PropertyName == e.EventArgs.FieldIdentifier.FieldName)

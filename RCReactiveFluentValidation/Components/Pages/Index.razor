@@ -1,4 +1,7 @@
 ﻿@page "/"
+@using Prism.Events
+@inject IEventAggregator  _eventAgrregator
+@implements IDisposable
 
 <h1>Hello, world!</h1>
 
@@ -8,7 +11,7 @@ Welcome to your new app.
 
 <div class="col-md-4">
     <EditForm Model="@Person" OnValidSubmit="@SubmitValidForm">
-        <FluentValidationValidator OnValidation="@CanSubmit" Validator="@validator"/>
+        <FluentValidationValidator Validator="@validator"/>
         <ValidationSummary />
 
         <div class="form-group">
@@ -44,14 +47,27 @@ Welcome to your new app.
 
     string Success = "";
     bool submitDisabled = true;
+    ValidationEvent _event;
+    SubscriptionToken _token;
 
-    void CanSubmit(bool flag)
+
+    protected override void OnInit()
     {
-        submitDisabled = !flag;
+        _event = _eventAgrregator.GetEvent<ValidationEvent>();
+        _token = _event.Subscribe(e => 
+            { submitDisabled = !e.Valid; },
+            ThreadOption.PublisherThread, false,
+            e => e.Model == typeof(Person).FullName);
+        base.OnInit();
     }
 
     void SubmitValidForm()
     {
         Success = "Form Submitted Successfully!";
+    }
+
+    public void Dispose()
+    {
+        _event.Unsubscribe(_token);
     }
 }

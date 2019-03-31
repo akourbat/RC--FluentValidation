@@ -8,6 +8,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.HttpsPolicy;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Prism.Events;
 using RCReactiveFluentValidation.Components;
 using RCReactiveFluentValidation.Services;
 
@@ -25,6 +26,7 @@ namespace RCReactiveFluentValidation
             services.AddRazorComponents();
 
             services.AddSingleton<WeatherForecastService>();
+            services.AddSingleton<IEventAggregator, EventAggregator>();
         }
 
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
