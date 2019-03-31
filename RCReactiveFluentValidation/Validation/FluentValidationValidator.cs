@@ -42,6 +42,7 @@ namespace RCReactiveFluentValidation.Validation
             var modelName = CurrentEditContext.Model.GetType().FullName;
             // This field collects errors that are model-related but not specific to concrete property on the model
             var modelErrorField = new FieldIdentifier(CurrentEditContext.Model, "");
+            var _event = _eventAggreagator.GetEvent<ValidationEvent>();
 
             // This subscription fires when Submit button is pressed, 
             // acts as a guard against not validated still-focused field
@@ -54,12 +55,10 @@ namespace RCReactiveFluentValidation.Validation
                     var validationResults = validator.Validate(CurrentEditContext.Model);
 
                     if (validationResults.IsValid)
-                        _eventAggreagator.GetEvent<ValidationEvent>()
-                            .Publish(new ValidationTarget { Valid = true, Model = modelName });
+                        _event.Publish(new ValidationEventArgs(true, modelName));
                     else
                     {
-                        _eventAggreagator.GetEvent<ValidationEvent>()
-                            .Publish(new ValidationTarget { Valid = false, Model = modelName });
+                        _event.Publish(new ValidationEventArgs(false, modelName));
                         foreach (var validationResult in validationResults.Errors)
                             messages.Add(CurrentEditContext.Field(validationResult.PropertyName), validationResult.ErrorMessage);
                     }
@@ -77,19 +76,17 @@ namespace RCReactiveFluentValidation.Validation
                     if (validationResults.IsValid)
                     {
                         messages.Clear();
-                        _eventAggreagator.GetEvent<ValidationEvent>()
-                            .Publish(new ValidationTarget { Valid = true, Model = modelName });
+                        _event.Publish(new ValidationEventArgs (true, modelName));
                     }
                     else
                     {
-                        _eventAggreagator.GetEvent<ValidationEvent>()
-                            .Publish(new ValidationTarget { Valid = false, Model = modelName });
+                        _event.Publish(new ValidationEventArgs(false, modelName));
                         messages.Clear(e.EventArgs.FieldIdentifier);
                         messages.AddRange(e.EventArgs.FieldIdentifier, validationResults.Errors
                             .Where(failure => failure.PropertyName == e.EventArgs.FieldIdentifier.FieldName)
                             .Select(failure => failure.ErrorMessage));
 
-                        // clear errors that are not specific to field, e.g. complex rules
+                        // add errors that are not specific to field, e.g. complex rules
                         messages.Clear(modelErrorField);
                         messages.AddRange(modelErrorField, validationResults.Errors
                             .Where(failure => failure.PropertyName == "")
